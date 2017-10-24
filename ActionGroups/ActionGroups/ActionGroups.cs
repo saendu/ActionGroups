@@ -5,7 +5,7 @@ using System.Linq;
 using System.Security.Policy;
 using System.Threading.Tasks;
 
-namespace TrisubModel
+namespace ActionGroups
 {
     public static class ActionGroups
     {
