@@ -10,6 +10,7 @@ namespace TrisubModel
     public static class ActionGroups
     {
         private static readonly Dictionary<string, ActionGroup> ActionGroupDictionary = new Dictionary<string, ActionGroup>();
+        private static readonly object ThisLock = new object();
 
         public static void Create(string groupName)
         {
@@ -53,10 +54,16 @@ namespace TrisubModel
             
         }
 
-        public static async Task Trigger(string groupName)
+        public static async Task TriggerAsync(string groupName)
         {
             List<Task> triggeredTasks = new List<Task>();
-            var isExistingGroup = ActionGroupDictionary.TryGetValue(groupName, out var subscriptions);
+            bool isExistingGroup;
+            ActionGroup subscriptions;
+            lock (ThisLock)
+            {
+                isExistingGroup = ActionGroupDictionary.TryGetValue(groupName, out subscriptions);
+            }
+            
             if (isExistingGroup)
             {
                 subscriptions.ToList().ForEach(subscription =>
@@ -69,7 +76,6 @@ namespace TrisubModel
             
             await Task.Run(() => Task.WaitAll(triggeredTasks.ToArray()));
         }
-
     }
 
     class ActionList : List<Func<Task>>
