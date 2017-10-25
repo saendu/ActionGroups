@@ -1,5 +1,6 @@
 ﻿using System;
 using System.CodeDom;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Policy;
@@ -9,16 +10,17 @@ namespace ActionGroups
 {
     public static class ActionGroups
     {
-        private static readonly Dictionary<string, ActionGroup> ActionGroupDictionary = new Dictionary<string, ActionGroup>();
+        private static readonly ConcurrentDictionary<string, ActionGroup> ActionGroupDictionary = new ConcurrentDictionary<string, ActionGroup>();
         private static readonly object ThisLock = new object();
 
         public static void Create(string groupName)
         {
-            ActionGroupDictionary.Add(groupName, new ActionGroup(groupName));
+            ActionGroupDictionary.TryAdd(groupName, new ActionGroup(groupName));
         }
 
         public static void Subscribe(Func<Task> func, string groupName, string subscriptionName = "")
         {
+            subscriptionName = string.IsNullOrEmpty(subscriptionName) ? Guid.NewGuid().ToString() : subscriptionName;
             var actionGroupExisting = ActionGroupDictionary.TryGetValue(groupName, out var actionGroup);
             if (actionGroupExisting)
             {
@@ -39,19 +41,31 @@ namespace ActionGroups
                 // create new ActionGroup
                 actionGroup = new ActionGroup(groupName);
                 actionGroup.Add(subscriptionName, new ActionList(func));
-                ActionGroupDictionary.Add(groupName, actionGroup);
+                ActionGroupDictionary.TryAdd(groupName, actionGroup);
             }
         }
 
         public static void Unsubscribe(string groupName, string subscriptionName)
         {
-            var existingActionGroup = ActionGroupDictionary.TryGetValue(groupName, out var ag); 
-            if (existingActionGroup)
+            var isExistingActionGroup = ActionGroupDictionary.TryGetValue(groupName, out var actionGroup); 
+            if (isExistingActionGroup)
             {
                 // remove subscription
-                ag.Remove(subscriptionName);
+                actionGroup.Remove(subscriptionName);
             }
             
+        }
+
+        public static void UnsubscribeAll(string groupName)
+        {
+            var isExistingActionGroup = ActionGroupDictionary.TryGetValue(groupName, out var actionGroup);
+            if (isExistingActionGroup)
+            {
+                // remove all subscription
+                var allSubscriptions = actionGroup.Keys.ToList();
+                allSubscriptions.ForEach(s => actionGroup.Remove(s));
+            }
+
         }
 
         public static async Task TriggerAsync(string groupName)

@@ -32,6 +32,7 @@ namespace ActionGroups
             //Task.WaitAll(t);
             // Unsubscribe from Action Group
             ActionGroups.Unsubscribe(groupName, subscriptionName);
+            ActionGroups.UnsubscribeAll(groupName);
             Thread.Sleep(5000);
         }
     }
